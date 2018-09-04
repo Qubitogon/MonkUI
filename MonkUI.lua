@@ -144,6 +144,13 @@ tempF:SetScript("OnEvent",function()
       
     end
     
+    function MUI.jSSCheckLite(self)
+      local up=GetTotemInfo(1)
+      if up then 
+        self:Show(); self.parent.grey:Hide()         
+      else self.parent.grey:Show(); self:Hide() end       
+    end
+    
     function MUI.onCastTP(self)
       local fabn=AuraUtil.FindAuraByName
       local nm=MUI.totm.normal
@@ -354,7 +361,7 @@ tempF:SetScript("OnEvent",function()
     f:RegisterUnitEvent("UNIT_POWER_UPDATE","player")
     f:SetScript("OnEvent",MUI.eventHandler)
     f:SetScript("OnShow",fOnShow)
-    f:SetSize(150,150)
+    f:SetSize(2*MUI.bigS+1,150)
     f:SetPoint("CENTER")
     f:SetMovable(true)
 
@@ -379,7 +386,6 @@ tempF:SetScript("OnEvent",function()
     end
 
     end --end of main mover slash
-
 
     --helper frame
     do
@@ -479,6 +485,15 @@ tempF:SetScript("OnEvent",function()
     MUI.jSS=createAuraIcon(115313,"big")
     MUI.jSS:SetPoint("RIGHT",MUI.eF,"LEFT",-1,0)
     MUI.jSS.check=MUI.jSSCheck
+    MUI.jSS.normal.checkLite=MUI.jSSCheckLite
+    MUI.jSS.normal.et=0
+    MUI.jSS.normal.parent=MUI.jSS
+    MUI.jSS.normal:SetScript("OnUpdate",function(self,et) 
+      self.et=self.et+et
+      if self.et<1.5 then return end
+      self.et=0
+      self:checkLite()    
+    end)
     
     MUI.jSS.channelUp=CreateFrame("Frame",nil,MUI.jSS.normal)
     MUI.jSS.channelUp:SetAllPoints()
@@ -581,6 +596,7 @@ tempF:SetScript("OnEvent",function()
 
     --things to do on load
     checkTalentStuff()
+    if playerName=="Qubit" then MUI.f:SetPoint("TOPRIGHT",_eFGlobal.units,"TOPLEFT",-2,0) end
     
   end
 end)
