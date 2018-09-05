@@ -295,6 +295,12 @@ tempF:SetScript("OnEvent",function()
       if jSS then MUI.jSS:Show(); MUI.jSS:check(); else MUI.jSS:Hide() end
     end
 
+    local function checkSpecialization()
+      
+      if GetSpecialization()==2 then MUI.f:Show(); MUI.f.loaded=true; else MUI.f:Hide(); MUI.f.loaded=false; end
+      
+    end
+    
     local function fOnShow()
       for _,v in pairs(port) do  v:onCast() end
       MUI.mana:update()
@@ -397,19 +403,17 @@ tempF:SetScript("OnEvent",function()
     h:RegisterEvent("PLAYER_REGEN_DISABLED")
     h:RegisterEvent("PLAYER_ENTERING_WORLD")
     h:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
-
+    h:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+    
     local function hEventHandler(self,event) 
       if event=="PLAYER_REGEN_ENABLED" then
-        --MUI.f:Hide()
-        MUI.f:Show() --for testing purposes
+        afterDo(15,function() MUI.f:Hide()end)
       elseif event=="PLAYER_REGEN_DISABLED" then
-        MUI.f:Show()
-      elseif event=="PLAYER_ENTERING_WORLD" then
-        fOnShow()
-        checkTalentStuff()
-        --if InCombatLockdown() then MUI.f:Show() else MUI.f:Hide() end 
+        if MUI.f.loaded then MUI.f:Show() end
       elseif event=="ACTIVE_TALENT_GROUP_CHANGED" then
         checkTalentStuff()
+      elseif event=="PLAYER_SPECIALIZATION_CHANGED" then
+        checkSpecialization()
       end
     end
 
@@ -594,10 +598,12 @@ tempF:SetScript("OnEvent",function()
     MUI.health.bg:SetColorTexture(0,0,0,1)
     end
 
-    --things to do on load
+    --things to do on PLAYER_ENTERING_WORLD
     checkTalentStuff()
+    fOnShow()
+    if InCombatLockdown() then MUI.f:Show() else MUI.f:Hide() end 
     if playerName=="Qubit" then MUI.f:SetPoint("TOPRIGHT",_eFGlobal.units,"TOPLEFT",-2,0) end
-    
+    checkSpecialization()
   end
 end)
 
