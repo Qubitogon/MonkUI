@@ -43,32 +43,6 @@ tempF:SetScript("OnEvent",function()
       end
     end
 
-    function MUI.onCastEF(self)
-      local t,d=GetSpellCooldown(self.id)
-
-      if d<2 then
-        self.offCD:Show()
-        self.onCD:Hide()
-      else
-        self.offCD:Hide()
-        self.onCD:Show()
-        self.onCD.et=1
-        self.onCD.cd:SetCooldown(t,d)
-        self.onCD.t=t
-        self.onCD.d=d
-      end
-
-      local _,_,_,_,channelEndTime=UnitChannelInfo("player")
-      if not channelEndTime then return end
-      local ticks=(channelEndTime-GetTime()*1000+1500)/4000
-      afterDo(ticks,function() port[116680]:onCast() end)
-      afterDo(ticks*2,function() port[116680]:onCast() end)
-      afterDo(ticks*3,function() port[116680]:onCast() end)
-      afterDo(ticks*3.5,function() port[116680]:onCast() end)
-      afterDo(ticks*4,function() port[116680]:onCast() end)
-   
-    end
-    
     function MUI.onCastTFT(self)
       local t,d=GetSpellCooldown(self.id)
       if d<2 then
@@ -89,7 +63,6 @@ tempF:SetScript("OnEvent",function()
         self.onCD.t=t
         self.onCD.d=d
       end
-
     end
     
     function MUI.onCastDetox(self)
@@ -158,6 +131,7 @@ tempF:SetScript("OnEvent",function()
       local up=GetTotemInfo(1)
       if up then 
         self.normal:Show(); self.grey:Hide() 
+        
         if self.channeling then
           self.channelUp:Show()
           self.channelDown:Hide()      
@@ -173,12 +147,8 @@ tempF:SetScript("OnEvent",function()
     function MUI.jSSCheckLite(self)
       local up=GetTotemInfo(1)
       if up then 
-        self.normal:Show(); self.grey:Hide()         
-      else 
-        self.grey:Show(); self.normal:Hide()
-        self.unit=nil
-        self.channeling=false
-      end       
+        self:Show(); self.parent.grey:Hide()         
+      else self.parent.grey:Show(); self:Hide() end       
     end
     
     function MUI.onCastTP(self)
@@ -188,9 +158,6 @@ tempF:SetScript("OnEvent",function()
       afterDo(0,function() local s=select(3,fabn("Teachings of the Monastery","player"));applyTOTM(s) end )
       afterDo(0.1,function() local s=select(3,fabn("Teachings of the Monastery","player"));applyTOTM(s) end )
       afterDo(0.2,function() local s=select(3,fabn("Teachings of the Monastery","player"));applyTOTM(s) end )
-      MUI.totm.ext=GetTime()+19.8
-      afterDo(20,function() MUI.totm:check()  end)
-      nm.cd:SetCooldown(GetTime(),20)
     end
 
     function MUI.onUpdate1(self,et)
@@ -269,7 +236,7 @@ tempF:SetScript("OnEvent",function()
       port[id]=iF
       return iF
     end
-    
+
     local function createAuraIcon(id,size)
       local iF
       local _,_,icon=GetSpellInfo(id)
@@ -343,94 +310,57 @@ tempF:SetScript("OnEvent",function()
       for _,v in pairs(port) do  v:onCast() end
       MUI.mana:update()
     end
-       
-    local function hasJSS(unit)
-      if not unit then return nil end
-      local d,t
-      for i=1,40 do
-        
-        local name,_,_,_,_,_,_,_,_,ID=UnitAura(unit,i,"PLAYER")
-        if not name then return nil end
-        if ID==198533 then 
-          return true
-        end 
-      end     
-    end
-    
-    local function getUnitID(name)
-      local raid=IsInRaid()
-      local s=""
-      local n=GetNumGroupMembers()
-      if raid then
-        s="raid"
-      else
-        if UnitName("player")==name then return "player" end
-        s="party"
-        n=n-1
-      end
-      
-      for i=1,n do
-        local s2=s..tostring(i)
-        local un,ur=UnitName(s2)
-        if ur then un=un.."-"..ur end
-        if un==name then return s2 end
-      end
-      return nil      
-    end
-    
-    MUI.eventHandler = function(self,event,_,tar,id,id2)
+
+    MUI.eventHandler = function(self,event,_,_,id)
 
       if event=="UNIT_POWER_UPDATE" then 
         MUI.mana:update()
-        
-        
-      elseif event=="UNIT_SPELLCAST_SUCCEEDED" then
+      else
        local spell=port[id]
        if spell then afterDo(0,function() spell:onCast(); port[116680]:onCast() end) 
        else afterDo(0,function() port[116680]:onCast() end) end --TFT (116680) because it can be influenced by so many spells, no point to add conditionals 
-      
-      
-      elseif event=="UNIT_SPELLCAST_SENT" then
-        if id2~=115175 then return end
-        local unit=getUnitID(tar)
-
-        if not unit then return end --TARGET IS NOT IN PARTY
-        
-        local castTime=GetTime()
-        local duration=3000/(100+UnitSpellHaste("player"))
-        
-        afterDo(0,function()
-          if not hasJSS(unit) then return end 
-          local f=MUI.jSS.channelUp
-          local jSS=MUI.jSS
-          jSS.channeling=true
-          
-          if unit~=jSS.unit then
-            jSS.unit=unit
-            jSS:UnregisterEvent("UNIT_AURA")
-            jSS:RegisterUnitEvent("UNIT_AURA",unit)
-            f.d=duration
-          else
-            local maxDuration=3000/(100+UnitSpellHaste("player"))*1.3
-            f.d=math.min(duration+f.d,maxDuration)
-          end
-          
-          f.t=castTime
-
-          f.et=10
-          jSS:check()
-        end)
-        
       end       
     end
 
-    local function checkTOTM(self)
-      if GetTime()>self.ext then self.normal:Hide(); self.grey:Show() end
+    local function combatLogEventHandler()
+      
+      local _,event,_,sourceGUID,sourceName,_,_,destGUID,destName,_,_,_,spell=CombatLogGetCurrentEventInfo()
+      local isPlayer,isJSS=false,false
+      isPlayer= (sourceName==playerName)
+      isJSS= (sourceName=="Jade Serpent Statue")
+      if not (isPlayer or isJSS) then return end
+
+      if event=="SPELL_SUMMON" then 
+        MUI.jSS:check() 
+        MUI.jSS.unitGUID=destGUID
+      elseif (isJSS and (event=="SPELL_AURA_REMOVED")) then
+        
+        if MUI.jSS.unitGUID~=sourceGUID then return end
+        if spell~="Soothing Mist" then return end
+        MUI.jSS.channeling=false
+        
+        
+        MUI.jSS:check()
+      elseif (isJSS and (event=="SPELL_AURA_APPLIED")) then
+        
+        if MUI.jSS.unitGUID~=sourceGUID then return end
+        if spell~="Soothing Mist" then return end
+        MUI.jSS.channeling=true
+        local duration=3000/(100+UnitSpellHaste("player"))
+        local frame=MUI.jSS.channelUp
+        frame.t=GetTime()
+        frame.d=duration
+        frame.et=10
+        
+        MUI.jSS:check()
+      end --end of eventflow
+      
+      
     end
     
-    local function onCastJSS()
-      MUI.jSS:check()   
-    end
+    local combatLogFrame=CreateFrame("Frame")
+    combatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    combatLogFrame:SetScript("OnEvent",combatLogEventHandler)
     
     MUI.f=CreateFrame("Frame","MUIFrame",UIParent)
     local f=MUI.f
@@ -439,7 +369,6 @@ tempF:SetScript("OnEvent",function()
     --main frame + mover + slash command
     do
     f:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED","player")
-    f:RegisterEvent("UNIT_SPELLCAST_SENT")
     f:RegisterUnitEvent("UNIT_POWER_UPDATE","player")
     f:SetScript("OnEvent",MUI.eventHandler)
     f:SetScript("OnShow",fOnShow)
@@ -502,9 +431,8 @@ tempF:SetScript("OnEvent",function()
 
     MUI.eF=createCDIcon(191837,"big")
     MUI.eF:SetPoint("TOPLEFT",MUI.f,"TOPLEFT",1+MUI.bigS,0)
-    MUI.eF.onCast=MUI.onCastEF
-    MUI.eF.lastCast=999999
-    
+    MUI.eF.onCast=MUI.onCast1
+
     MUI.ReM=createCDIcon(115151,"big")
     MUI.ReM:SetPoint("TOP",MUI.eF,"BOTTOM",0,-1)
     MUI.ReM.onCast=MUI.onCastReM
@@ -538,9 +466,7 @@ tempF:SetScript("OnEvent",function()
     MUI.totm=createAuraIcon(116645,"med")
     MUI.totm:SetPoint("TOP",MUI.rSK,"BOTTOM",0,-1)
     MUI.totm.normal.text:SetTextColor(green[1],green[2],green[3])
-    MUI.totm.normal.cd:SetReverse(true)
-    MUI.totm.check=checkTOTM
-    
+
     MUI.cB=createCDIcon(123986,"med")
     MUI.cB:SetPoint("TOP",MUI.mT,"BOTTOM",0,-1)
     MUI.cB.onCast=MUI.onCast1
@@ -568,14 +494,15 @@ tempF:SetScript("OnEvent",function()
     MUI.jSS=createAuraIcon(115313,"big")
     MUI.jSS:SetPoint("RIGHT",MUI.eF,"LEFT",-1,0)
     MUI.jSS.check=MUI.jSSCheck
-    MUI.jSS.onCast=onCastJSS
-    MUI.jSS.checkLite=MUI.jSSCheckLite
-    MUI.jSS.normal.et=10
+    MUI.jSS.normal.checkLite=MUI.jSSCheckLite
+    MUI.jSS.normal.et=0
     MUI.jSS.normal.parent=MUI.jSS
-    MUI.jSS.et=10
-    
-    
-    port[115313]=MUI.jSS
+    MUI.jSS.normal:SetScript("OnUpdate",function(self,et) 
+      self.et=self.et+et
+      if self.et<1.5 then return end
+      self.et=0
+      self:checkLite()    
+    end)
     
     MUI.jSS.channelUp=CreateFrame("Frame",nil,MUI.jSS.normal)
     MUI.jSS.channelUp:SetAllPoints()
@@ -589,8 +516,8 @@ tempF:SetScript("OnEvent",function()
     MUI.jSS.channelDown.text=MUI.jSS.channelDown:CreateFontString(nil,"OVERLAY")
     MUI.jSS.channelDown.text:SetFont("Fonts\\FRIZQT__.ttf",MUI.bigFS*0.8,"OUTLINE")
     MUI.jSS.channelDown.text:SetTextColor(red[1],red[2],red[3])
-    MUI.jSS.channelDown.text:SetPoint("CENTER")
     MUI.jSS.channelDown.text:SetText("0")
+    MUI.jSS.channelDown.text:SetPoint("CENTER")
 
     end
 
@@ -676,35 +603,11 @@ tempF:SetScript("OnEvent",function()
     MUI.health.bg:SetColorTexture(0,0,0,1)
     end
 
-    --JSS stuff
-    do
-    
-    local f=MUI.jSS
-    f:RegisterEvent("PLAYER_TOTEM_UPDATE")
-    local function jssOnEvent(self,event)
-      if event=="UNIT_AURA" then      
-        local unit=self.unit      
-        if not hasJSS(unit) then       
-          self.channelDown:Show()
-          self.channelUp:Hide()
-          self.unit=nil
-          self.channeling=false
-          self:UnregisterEvent("UNIT_AURA")
-        end  
-        
-      else
-        self:checkLite()
-      end
-    end
-    f:SetScript("OnEvent",jssOnEvent)
-    
-    end
-    
     --things to do on PLAYER_ENTERING_WORLD
     checkTalentStuff()
     fOnShow()
     checkSpecialization()
-    if playerName=="Qubit" then MUI.f:SetPoint("TOPRIGHT",_eFGlobal.units,"TOPLEFT",-3,0) end
+    if playerName=="Qubit" then MUI.f:SetPoint("TOPRIGHT",_eFGlobal.units,"TOPLEFT",-2,0) end
     checkCombat()
   end
 end)
