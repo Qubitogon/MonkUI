@@ -388,7 +388,7 @@ tempF:SetScript("OnEvent",function()
        local spell=port[id]
        if spell then afterDo(0,function() spell:onCast(); port[116680]:onCast() end) 
        else afterDo(0,function() port[116680]:onCast() end) end --TFT (116680) because it can be influenced by so many spells, no point to add conditionals 
-      
+       --if id==585 then afterDo(0,function() port[47540]:onCast() end) end
       
       elseif event=="UNIT_SPELLCAST_SENT" then
         if id2~=115175 then return end
